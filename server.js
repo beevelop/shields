@@ -4985,6 +4985,74 @@ cache(function(data, match, sendBadge, request) {
   });
 }));
 
+// docker hub image layer & size integration.
+// NOTE :
+// - size are for the compressed layers - https://github.com/docker/hub-feedback/issues/331 https://github.com/docker/hub-feedback/issues/242
+// - layers are for the actual image, regardless of the parent (ignoring the layers comming from the FROM)
+camp.route(/^\/docker\/image\/(image\-size|size|layers)\/([^\/]+)\/([^\/]+)\/([^\/]*)\.(svg|png|gif|jpg|json)$/,
+cache(function(data, match, sendBadge, request) {
+  var integration = match[1];
+  var type = match[2];
+  var user = match[3];
+  var repo = match[4];
+  var tag = match[5]
+  var format = match[6];
+  if (user === '_') {
+    user = 'library';
+  }
+  var path = user + '/' + repo;
+  var badgeData = getBadgeData(type, data);
+  var token_url = 'https://auth.docker.io/token?service=registry.docker.io&scope=repository:' + path + ':pull';
+  request(token_url, function(err, res, token_buffer) {
+    if (err != null) {
+      badgeData.text[1] = 'inaccessible';
+      sendBadge(format, badgeData);
+      return;
+    }
+    try {
+      var token = JSON.parse(token_buffer)['token']
+      var options = {
+        method: 'GET',
+        headers: {
+          Accept: 'application/vnd.docker.distribution.manifest.v2+json',
+          Authorization: 'Bearer ' + token
+        },
+        url: 'https://registry.hub.docker.com/v2/' + path + '/manifests/' + tag
+      };
+      request(options, function(err, res, buffer) {
+        if (err != null) {
+          badgeData.text[1] = 'inaccessible';
+          sendBadge(format, badgeData);
+          return;
+        }
+        try {
+          var data = JSON.parse(buffer)
+          if (type == 'layers') {
+            badgeData.text[1] = data.layers.length;
+          }
+          else {
+            var size = 0;
+            data.layers.forEach(function(layer){
+              size += layer.size
+            });
+            badgeData.text[0] = 'image size';
+            badgeData.text[1] = metric(size) + 'B';
+          }
+          badgeData.colorscheme = null;
+          badgeData.colorB = '#007ec6';
+          sendBadge(format, badgeData);
+        } catch(e) {
+          badgeData.text[1] = 'invalid';
+          sendBadge(format, badgeData);
+        }
+      });
+    } catch(e) {
+        badgeData.text[1] = 'invalid';
+        sendBadge(format, badgeData);
+    }
+  });
+}));
+
 // ImageLayers.io integration.
 camp.route(/^\/imagelayers\/(image\-size|layers)\/([^\/]+)\/([^\/]+)\/([^\/]*)\.(svg|png|gif|jpg|json)$/,
 cache(function(data, match, sendBadge, request) {
