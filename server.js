@@ -4991,12 +4991,11 @@ cache(function(data, match, sendBadge, request) {
 // - layers are for the actual image, regardless of the parent (ignoring the layers comming from the FROM)
 camp.route(/^\/docker\/image\/(image\-size|size|layers)\/([^\/]+)\/([^\/]+)\/([^\/]*)\.(svg|png|gif|jpg|json)$/,
 cache(function(data, match, sendBadge, request) {
-  var integration = match[1];
-  var type = match[2];
-  var user = match[3];
-  var repo = match[4];
-  var tag = match[5]
-  var format = match[6];
+  var type = match[1];
+  var user = match[2];
+  var repo = match[3];
+  var tag = match[4]
+  var format = match[5];
   if (user === '_') {
     user = 'library';
   }
